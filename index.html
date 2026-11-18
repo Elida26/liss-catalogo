@@ -163,6 +163,19 @@ legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
 .note { color: var(--muted); font-size: 0.82rem; margin: 0; }
 .actions { display: grid; gap: 8px; }
 .empty-cart { color: var(--muted); text-align: center; padding-block: 24px; }
+
+
+/* vista de detalle */
+.photo[data-open], .name[data-open] { cursor: pointer; }
+.d-photo { background: var(--blush); aspect-ratio: 3 / 4; max-height: 52vh; width: 100%; margin: 0 auto; display: grid; place-items: center; overflow: hidden; border-radius: 10px; }
+.d-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.d-photo svg { width: 30%; height: auto; color: var(--gold); }
+.d-name { font-family: var(--font-display); font-weight: 600; font-size: 2rem; line-height: 1.05; color: var(--fg); margin: 0; overflow-wrap: anywhere; }
+.d-desc { margin: 0; color: var(--muted); }
+.d-sec h3 { font-family: var(--font-display); font-size: 1.3rem; color: var(--gold); margin: 0 0 4px; }
+.d-sec p { margin: 0; color: var(--fg); line-height: 1.5; }
+.d-actions { display: grid; gap: 8px; }
+.d-price { font-weight: 600; font-size: 1.4rem; font-variant-numeric: tabular-nums; }
 </style>
 
 <header>
@@ -229,6 +242,15 @@ legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
   <div class="cartbar-in">
     <div><b id="barTotal"></b><small id="barCount"></small></div>
     <button type="button" class="btn" id="openCart">Ver mi pedido</button>
+  </div>
+</div>
+
+<div class="sheet" id="detalle" hidden role="dialog" aria-modal="true" aria-label="Detalle del producto">
+  <div class="panel">
+    <div class="panel-head">
+      <button type="button" class="btn ghost" id="closeDetail">← Volver al catálogo</button>
+    </div>
+    <div id="detailBody"></div>
   </div>
 </div>
 
@@ -348,9 +370,9 @@ legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
 
   function card(p) {
     var i = state.sel[p.id] || 0;
-    var h = '<article class="card" data-id="' + p.id + '"><div class="photo">' +
+    var h = '<article class="card" data-id="' + p.id + '"><div class="photo" data-open="1" role="button" tabindex="0" aria-label="Ver detalle de ' + esc(p.name) + '">' +
       (p.img ? '<img src="' + IMGS[p.img] + '" alt="' + esc(p.name) + '" loading="lazy">' : icon(p.form)) +
-      '</div><div class="body"><h3 class="name">' + esc(p.name) + "</h3>";
+      '</div><div class="body"><h3 class="name" data-open="1">' + esc(p.name) + "</h3>";
     if (p.desc) h += '<p class="desc">' + esc(p.desc) + "</p>";
     if (p.uso) h += '<details class="uso"><summary>Modo de uso</summary><p>' + esc(p.uso) + "</p></details>";
     h += '<div class="spacer"></div>';
@@ -459,6 +481,82 @@ legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
     body.innerHTML = h;
   }
 
+  /* ---------- vista de detalle (una URL por producto: #id) ---------- */
+  function detailHTML(p) {
+    var i = state.sel[p.id] || 0;
+    var h = '<div class="d-photo">' + (p.img ? '<img src="' + IMGS[p.img] + '" alt="' + esc(p.name) + '">' : icon(p.form)) + '</div>' +
+      '<div style="display:grid;gap:10px;margin-top:14px" data-id="' + p.id + '">' +
+      '<h2 class="d-name">' + esc(p.name) + '</h2>';
+    if (p.desc) h += '<p class="d-desc">' + esc(p.desc) + '</p>';
+    if (p.uso) h += '<div class="d-sec"><h3>Modo de uso</h3><p>' + esc(p.uso) + '</p></div>';
+    if (p.v.length > 1 || (p.v[0][0] !== "Kit" && p.v[0][0] !== "Unidad")) {
+      h += '<div class="vars">' + p.v.map(function (v, j) {
+        return '<button type="button" class="var" data-dv="' + j + '" aria-pressed="' + (j === i) + '">' + esc(v[0]) + "</button>";
+      }).join("") + "</div>";
+    }
+    h += '<div class="d-actions">';
+    if (p.v[i][1] == null) {
+      var ask = "Hola! Quiero consultar el precio de " + p.name + " (LISS Profesional).";
+      h += '<div class="d-price">Precio a consultar</div><a class="consult" href="https://wa.me/' + WA + "?text=" + encodeURIComponent(ask) + '" target="_blank" rel="noopener">Consultar por WhatsApp</a>';
+    } else {
+      h += '<div class="d-price">' + $(p.v[i][1]) + '</div><button type="button" class="add" data-dadd="1">Agregar al pedido</button>';
+    }
+    h += '<button type="button" class="btn ghost" data-share="1">Compartir este producto</button>' +
+      '<p class="note" id="shareMsg" aria-live="polite"></p></div></div>';
+    return h;
+  }
+
+  function showDetail(id) {
+    var p = byId(id);
+    if (!p || p.off) { hideDetail(); return; }
+    document.getElementById("detailBody").innerHTML = detailHTML(p);
+    document.getElementById("detalle").hidden = false;
+  }
+  function hideDetail() { document.getElementById("detalle").hidden = true; }
+  function openDetail(id) { history.pushState({ liss: id }, "", "#" + id); showDetail(id); }
+  function closeDetail() {
+    if (history.state && history.state.liss) { history.back(); return; }
+    hideDetail();
+    if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+  }
+  function shareProduct(p) {
+    var url = location.href.split("#")[0] + "#" + p.id;
+    var title = "LISS Profesional · " + p.name;
+    var msg = document.getElementById("shareMsg");
+    if (navigator.share) { navigator.share({ title: title, text: title, url: url }).catch(function () {}); return; }
+    try {
+      navigator.clipboard.writeText(url).then(function () { msg.textContent = "Link copiado."; }, function () { msg.textContent = url; });
+    } catch (err) { msg.textContent = url; }
+  }
+
+  document.getElementById("closeDetail").addEventListener("click", closeDetail);
+  document.getElementById("detalle").addEventListener("click", function (e) { if (e.target.id === "detalle") closeDetail(); });
+  document.getElementById("detailBody").addEventListener("click", function (e) {
+    var box = e.target.closest("[data-id]"); if (!box) return;
+    var p = byId(box.getAttribute("data-id")); if (!p) return;
+    var dv = e.target.closest("[data-dv]");
+    if (dv) {
+      state.sel[p.id] = +dv.getAttribute("data-dv");
+      showDetail(p.id);
+      var c = document.querySelector('.card[data-id="' + p.id + '"]'); if (c) c.outerHTML = card(p);
+      return;
+    }
+    if (e.target.closest("[data-dadd]")) {
+      var key = p.id + ":" + (state.sel[p.id] || 0);
+      state.cart[key] = (state.cart[key] || 0) + 1;
+      refresh();
+      var btn = e.target.closest("[data-dadd]");
+      btn.textContent = "Agregado (" + state.cart[key] + ")";
+      setTimeout(function () { if (btn.isConnected) btn.textContent = "Agregar al pedido"; }, 1200);
+      return;
+    }
+    if (e.target.closest("[data-share]")) shareProduct(p);
+  });
+  window.addEventListener("popstate", function () {
+    var h = decodeURIComponent(location.hash.slice(1));
+    if (h && byId(h) && !byId(h).off) showDetail(h); else hideDetail();
+  });
+
   function refresh() { save(); bar(); if (!document.getElementById("sheet").hidden) cartView(); }
   function openCart() { cartView(); document.getElementById("sheet").hidden = false; }
   function closeCart() { document.getElementById("sheet").hidden = true; }
@@ -472,6 +570,7 @@ legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
   document.getElementById("catalogo").addEventListener("click", function (e) {
     var cardEl = e.target.closest(".card"); if (!cardEl) return;
     var p = byId(cardEl.getAttribute("data-id")); if (!p) return;
+    if (e.target.closest("[data-open]")) { openDetail(p.id); return; }
     var v = e.target.closest(".var");
     if (v) { state.sel[p.id] = +v.getAttribute("data-v"); cardEl.outerHTML = card(p); return; }
     var add = e.target.closest(".add");
@@ -484,10 +583,18 @@ legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
     }
   });
 
+  document.getElementById("catalogo").addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+    var o = e.target.closest("[data-open]"); if (!o) return;
+    var cardEl = o.closest(".card"); if (cardEl) openDetail(cardEl.getAttribute("data-id"));
+  });
   document.getElementById("openCart").addEventListener("click", openCart);
   document.getElementById("closeCart").addEventListener("click", closeCart);
   document.getElementById("sheet").addEventListener("click", function (e) { if (e.target.id === "sheet") closeCart(); });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeCart(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (!document.getElementById("detalle").hidden) closeDetail(); else closeCart();
+  });
 
   var cb = document.getElementById("cartBody");
   cb.addEventListener("click", function (e) {
@@ -520,6 +627,7 @@ legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
   });
 
   chips(); render(); bar();
+  (function () { var h = decodeURIComponent(location.hash.slice(1)); if (h && byId(h) && !byId(h).off) showDetail(h); })();
 })();
 </script>
 
