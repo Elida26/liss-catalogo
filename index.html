@@ -293,7 +293,7 @@ legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
     al("espejo", "Espejo", 16000, 27500),
     al("plastificado", "Plastificado", 16000, 27500),
     al("mota-plex", "Mota Plex", 16000, 27500),
-    al("hidroplex", "Hidroplex", 16000, 27500, "hidroplex", "Alisado con Plex. Repara, nutre y alisa. Uso profesional.", "Lavar el cabello con shampoo neutro dos veces. Secar el cabello. Aplicar el producto y dejar actuar 20 minutos. Secar al 100%. Planchar con mechas finas. Opcional: enjuagar. Finalizar con Crema Extra Ácida."),
+    al("hidroplex", "Hidroplex", 16000, 27500, "hidroplex", "Alisado con tecnología Hidroplex y Plex. Repara, nutre y alisa. Control del frizz, brillo y suavidad extrema. Uso profesional, para salón.", "Lavar el cabello con shampoo neutro dos veces. Secar el cabello. Aplicar el producto y dejar actuar 20 minutos. Secar al 100%. Planchar con mechas finas. Opcional: enjuagar. Finalizar con Crema Extra Ácida."),
     al("brasilero", "Brasilero", 16000, 27500, "brasilero", "Alisado brasilero con palta.", "Lavar con shampoo neutro. Secar al 100%. Aplicar el producto mecha por mecha. Brushinar. Pasar plancha de 15 a 20 pasadas."),
     al("argan", "Argán", 16000, 27500),
     al("gloss", "Gloss", 16000, 27500, "gloss_alisado", "Se usa con crema extra ácida.", "Según el tipo de cabello. Lavar con shampoo neutro o alcalino. Secar al 100%. Aplicar el producto 1. Hacer brushing. Pasar la plancha 15 veces por mecha. Enjuagar."),
@@ -513,11 +513,13 @@ legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
     document.getElementById("detalle").hidden = false;
   }
   function hideDetail() { document.getElementById("detalle").hidden = true; }
-  function openDetail(id) { history.pushState({ liss: id }, "", "#" + id); showDetail(id); }
+  function openDetail(id) { try { history.pushState({ liss: id }, "", "#" + id); } catch (e) {} showDetail(id); }
   function closeDetail() {
-    if (history.state && history.state.liss) { history.back(); return; }
     hideDetail();
-    if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+    try {
+      if (history.state && history.state.liss) { history.back(); return; }
+      if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+    } catch (e) {}
   }
   function shareProduct(p) {
     var url = location.href.split("#")[0] + "#" + p.id;
